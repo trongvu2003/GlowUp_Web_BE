@@ -8,6 +8,8 @@ const hostname = process.env.HOST_NAME;
 // Middleware parse JSON
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+// Cho phép public folder ảnh
+app.use("/uploads", express.static("src/uploads"));
 
 // Khai bao routes
 const userRouter = require("./routes/user_route");

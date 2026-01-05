@@ -12,7 +12,9 @@ const getProductById = async (req, res) => {
 };
 
 const CreateProduct = async (req, res) => {
-  const data = await ProductService.create(req.body);
+  const images = req.files.map((f) => f.filename);
+  const data = { ...req.body, images };
+  await ProductService.create(data);
   res.json({ message: "create success" });
 };
 
