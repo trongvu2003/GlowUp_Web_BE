@@ -45,7 +45,7 @@ class ProductModel {
       .request()
       .input("id", sql.Int, id)
       .input("name", sql.NVarChar, data.name)
-      .input("price", sql.Decimal, data.price)
+      .input("price", sql.Decimal, data.price ?? null)
       .input("quantity", sql.Int, data.quantity)
       .input("description", sql.NVarChar, data.description)
       .input("images", sql.NVarChar, JSON.stringify(data.images || [])).query(`

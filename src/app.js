@@ -1,9 +1,17 @@
 const express = require("express");
 require("dotenv").config();
+const cors = require("cors");
 
 const app = express();
 const port = process.env.PORT || 8082;
 const hostname = process.env.HOST_NAME;
+
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  })
+);
 
 // Middleware parse JSON
 app.use(express.json());
