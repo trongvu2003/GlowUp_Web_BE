@@ -1,4 +1,4 @@
-const ProductModel = require("../models/product");
+const ProductModel = require("../models/product_model");
 
 class ProductService {
   static getAll() {

@@ -2,11 +2,11 @@ const CategoryModel = require("../models/category_model");
 
 const CategoryService = {
   getAllCategories: async () => {
-    return await CategoryModel.findAll();
+    return await CategoryModel.getAll();
   },
 
   getCategoryById: async (id) => {
-    return await CategoryModel.findById(id);
+    return await CategoryModel.getById(id);
   },
 
   createCategory: async (data) => {
