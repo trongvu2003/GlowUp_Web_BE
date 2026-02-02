@@ -24,8 +24,20 @@ class ShippingService {
   }
 
   // Tạo tracking mới
-  async createTracking(data) {
-    return await ShippingTrackingModel.create(data);
+  async createTracking(trackingData) {
+    // Validate data
+    if (!trackingData.order_id) {
+      throw new Error('Order ID là bắt buộc');
+    }
+
+    if (!trackingData.status) {
+      throw new Error('Trạng thái là bắt buộc');
+    }
+
+    // Tạo tracking trong database
+    const newTracking = await ShippingTrackingModel.create(trackingData);
+
+    return newTracking;
   }
 
   // Lấy lịch sử tracking

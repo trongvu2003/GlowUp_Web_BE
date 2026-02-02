@@ -77,11 +77,7 @@ class ShippingController {
   // [CUSTOMER] Lấy lịch sử vận chuyển đơn hàng
   async getTrackingHistory(req, res) {
     try {
-      const { orderId } = req.params;
-      const userId = req.user.id;
-
-      // TODO: Kiểm tra order có thuộc về user không
-      
+      const { orderId } = req.params;         
       const trackings = await shippingService.getTrackingHistory(orderId);
 
       res.json({
@@ -96,13 +92,58 @@ class ShippingController {
       });
     }
   }
+  async createTracking(req, res) {
+    try {
+      const { orderId } = req.params;
+      const { status, location, description } = req.body;
+
+      // Validate required fields
+      if (!orderId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Order ID là bắt buộc'
+        });
+      }
+
+      if (!status) {
+        return res.status(400).json({
+          success: false,
+          message: 'Trạng thái là bắt buộc'
+        });
+      }
+
+      // Tạo tracking data
+      const trackingData = {
+        order_id: orderId,
+        status: status,
+        location: location || null,
+        description: description || null,
+        updated_by: adminId || null
+      };
+
+      const tracking = await shippingService.createTracking(trackingData);
+
+      res.status(201).json({
+        success: true,
+        message: 'Tạo tracking thành công',
+        data: tracking
+      });
+
+    } catch (error) {
+      console.error('Create tracking error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Lỗi khi tạo tracking',
+        error: error.message
+      });
+    }
+  }
 
   // [ADMIN] Cập nhật trạng thái vận chuyển
   async updateStatus(req, res) {
     try {
       const { orderId } = req.params;
       const { status, location, description } = req.body;
-      const adminId = req.user.id;
 
       if (!status) {
         return res.status(400).json({
@@ -116,7 +157,6 @@ class ShippingController {
         status,
         location,
         description,
-        adminId
       );
 
       res.json({
