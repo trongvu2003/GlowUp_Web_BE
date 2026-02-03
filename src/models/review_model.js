@@ -8,6 +8,11 @@ class ReviewModel {
         throw new Error("Database connection pool is null");
       }
       const offset = (page - 1) * limit;
+      const colCheck = await pool.request().query("SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='reviews' AND COLUMN_NAME='media_urls'");
+      const hasMediaCol = colCheck.recordset[0].cnt > 0;
+
+      const selectMedia = hasMediaCol ? ", r.media_urls" : "";
+
       const result = await pool
       .request()
       .input("limit", sql.Int, limit)
@@ -22,7 +27,7 @@ class ReviewModel {
           r.is_anonymous,
           r.created_at,
             u.full_name as username,
-          p.name as product_name,
+          p.name as product_name${selectMedia},
           0 as has_purchased
         FROM reviews r
         LEFT JOIN users u ON r.user_id = u.id
@@ -34,10 +39,16 @@ class ReviewModel {
 
     const totalResult = await pool.request().query("SELECT COUNT(*) as total FROM reviews");
     
-    return {
-      data: result.recordset.map((r) => ({
-        ...r,
-        media_urls: [],
+      return {
+      data: result.recordset.map((rec) => ({
+        ...rec,
+        media_urls: (() => {
+          try {
+            return rec.media_urls ? JSON.parse(rec.media_urls) : [];
+          } catch (e) {
+            return [];
+          }
+        })(),
       })),
       total: totalResult.recordset[0].total,
     };
@@ -54,6 +65,9 @@ class ReviewModel {
         throw new Error("Database connection pool is null");
       }
       const offset = (page - 1) * limit;
+      const colCheck = await pool.request().query("SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='reviews' AND COLUMN_NAME='media_urls'");
+      const hasMediaCol = colCheck.recordset[0].cnt > 0;
+      const selectMedia = hasMediaCol ? ", r.media_urls" : "";
 
       const result = await pool
         .request()
@@ -69,7 +83,7 @@ class ReviewModel {
             r.comment,
             r.is_anonymous,
             r.created_at,
-            u.full_name as username,
+            u.full_name as username${selectMedia},
             0 as has_purchased
           FROM reviews r
           LEFT JOIN users u ON r.user_id = u.id
@@ -85,9 +99,15 @@ class ReviewModel {
         .query("SELECT COUNT(*) as total FROM reviews WHERE product_id = @productId");
 
       return {
-        data: result.recordset.map((r) => ({
-          ...r,
-          media_urls: [],
+        data: result.recordset.map((rec) => ({
+          ...rec,
+          media_urls: (() => {
+            try {
+              return rec.media_urls ? JSON.parse(rec.media_urls) : [];
+            } catch (e) {
+              return [];
+            }
+          })(),
         })),
         total: totalResult.recordset[0].total,
       };
@@ -103,6 +123,10 @@ class ReviewModel {
       if (!pool) {
         throw new Error("Database connection pool is null");
       }
+      const colCheck = await pool.request().query("SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='reviews' AND COLUMN_NAME='media_urls'");
+      const hasMediaCol = colCheck.recordset[0].cnt > 0;
+      const selectMedia = hasMediaCol ? ", r.media_urls" : "";
+
       const result = await pool
         .request()
         .input("id", sql.Int, id)
@@ -115,7 +139,7 @@ class ReviewModel {
             r.comment,
             r.is_anonymous,
             r.created_at,
-            u.full_name as username,
+            u.full_name as username${selectMedia},
             0 as has_purchased
           FROM reviews r
           LEFT JOIN users u ON r.user_id = u.id
@@ -127,7 +151,13 @@ class ReviewModel {
       const review = result.recordset[0];
       return {
         ...review,
-        media_urls: [],
+        media_urls: (() => {
+          try {
+            return review.media_urls ? JSON.parse(review.media_urls) : [];
+          } catch (e) {
+            return [];
+          }
+        })(),
       };
     } catch (error) {
       console.error("Error in getById:", error);
@@ -175,9 +205,10 @@ class ReviewModel {
         .input("rating", sql.Int, data.rating)
         .input("comment", sql.NVarChar(sql.MAX), data.comment)
         .input("is_anonymous", sql.Bit, data.is_anonymous ? 1 : 0)
+        .input("media_urls", sql.NVarChar(sql.MAX), JSON.stringify(data.media_urls || []))
         .query(`
-          INSERT INTO reviews (user_id, product_id, rating, comment, is_anonymous)
-          VALUES (@user_id, @product_id, @rating, @comment, @is_anonymous)
+          INSERT INTO reviews (user_id, product_id, rating, comment, is_anonymous, media_urls)
+          VALUES (@user_id, @product_id, @rating, @comment, @is_anonymous, @media_urls)
         `);
 
       return { message: "Đánh giá đã được tạo" };
