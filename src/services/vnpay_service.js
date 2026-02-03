@@ -125,6 +125,75 @@ class VNPayService {
 
     return { isValid: false };
   }
+  verifyIpn(vnpParams) {
+    const secureHash = vnpParams.vnp_SecureHash;
+    const responseCode = vnpParams.vnp_ResponseCode;
+
+    delete vnpParams.vnp_SecureHash;
+    delete vnpParams.vnp_SecureHashType;
+
+    const sortedParams = this.sortObject(vnpParams);
+
+    const signData = Object.keys(sortedParams)
+      .map(key => `${key}=${sortedParams[key]}`)
+      .join('&');
+
+    const signed = crypto
+      .createHmac('sha512', this.vnp_HashSecret)
+      .update(signData, 'utf8')
+      .digest('hex');
+
+    if (secureHash !== signed) {
+      return {
+        RspCode: '97',
+        Message: 'Invalid signature'
+      };
+    }
+
+    if (responseCode === '00') {
+      return {
+        RspCode: '00',
+        Message: 'Success',
+        paymentId: sortedParams.vnp_TxnRef,
+        amount: sortedParams.vnp_Amount / 100,
+        transactionNo: sortedParams.vnp_TransactionNo,
+        bankCode: sortedParams.vnp_BankCode,
+        bankTranNo: sortedParams.vnp_BankTranNo,
+        cardType: sortedParams.vnp_CardType,
+        payDate: sortedParams.vnp_PayDate,
+        rawData: sortedParams
+      };
+    }
+
+    return {
+      RspCode: responseCode,
+      Message: 'Transaction failed',
+      paymentId: sortedParams.vnp_TxnRef
+    };
+  }
+
+  /**
+   * Lấy mô tả response code
+   */
+  getResponseDescription(code) {
+    const messages = {
+      '00': 'Giao dịch thành công',
+      '07': 'Trừ tiền thành công. Giao dịch bị nghi ngờ',
+      '09': 'Thẻ/Tài khoản chưa đăng ký dịch vụ InternetBanking',
+      '10': 'Xác thực thông tin thẻ/tài khoản không đúng quá 3 lần',
+      '11': 'Đã hết hạn chờ thanh toán',
+      '12': 'Thẻ/Tài khoản bị khóa',
+      '13': 'Sai mật khẩu xác thực giao dịch (OTP)',
+      '24': 'Khách hàng hủy giao dịch',
+      '51': 'Tài khoản không đủ số dư',
+      '65': 'Tài khoản vượt quá hạn mức giao dịch trong ngày',
+      '75': 'Ngân hàng thanh toán đang bảo trì',
+      '79': 'Nhập sai mật khẩu thanh toán quá số lần quy định',
+      '99': 'Lỗi không xác định'
+    };
+
+    return messages[code] || 'Lỗi không xác định';
+  }
 }
 
 module.exports = new VNPayService();

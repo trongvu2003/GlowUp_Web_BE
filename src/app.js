@@ -3,7 +3,7 @@ require("dotenv").config();
 const cors = require("cors");
 
 const app = express();
-const port = process.env.PORT || 8082;
+const port = process.env.PORT || 8081;
 
 /* ================= MIDDLEWARE ================= */
 
@@ -13,6 +13,7 @@ app.use(
     credentials: true,
   })
 );
+app.options(/.*/, cors());
 
 // Parse JSON (fix lỗi body rỗng / VNPay)
 app.use(express.json({ strict: false }));

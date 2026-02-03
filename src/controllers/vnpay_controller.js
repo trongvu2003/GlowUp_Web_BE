@@ -6,6 +6,10 @@ class VNPayController {
    * Tạo payment record và URL thanh toán VNPay
    */
   async createPayment(req, res) {
+    console.log("✅✅✅ CONTROLLER createPayment CALLED!");
+  console.log("📦 Request Body:", req.body);
+  console.log("📍 Request URL:", req.url);
+  console.log("📍 Request Method:", req.method);
     try {
       const { orderId, bankCode } = req.body;
 
