@@ -31,6 +31,15 @@ class OrderModel {
     return result.recordset;
   }
 
+  static async getAll() {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .query("SELECT * FROM orders ORDER BY created_at DESC");
+
+    return result.recordset;
+  }
+
   static async getById(orderId) {
     const pool = await poolPromise;
     const result = await pool

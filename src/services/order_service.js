@@ -66,6 +66,37 @@ class OrderService {
     };
   }
 
+  static async getAllOrders() {
+    // Get all orders
+    const orders = await OrderModel.getAll();
+
+    // For each order, get its items and voucher info
+    const ordersWithItems = await Promise.all(
+      orders.map(async (order) => {
+        const items = await OrderItemModel.getByOrderId(order.id);
+        
+        // Get voucher info if voucher_id exists
+        let voucher = null;
+        if (order.voucher_id) {
+          voucher = await VoucherModel.getById(order.voucher_id);
+        }
+        
+        // Destructure to exclude voucher_id from response
+        const { voucher_id, ...orderWithoutVoucherId } = order;
+        
+        return {
+          ...orderWithoutVoucherId,
+          items: items,
+          voucher: voucher,
+        };
+      })
+    );
+
+    return {
+      orders: ordersWithItems,
+    };
+  }
+
   static async deleteOrder(orderId) {
     // Check if order exists
     const order = await OrderModel.getById(orderId);

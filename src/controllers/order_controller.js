@@ -46,6 +46,16 @@ const getOrdersByUserId = async (req, res) => {
   }
 };
 
+const getAllOrders = async (req, res) => {
+  try {
+    const result = await OrderService.getAllOrders();
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error while fetching all orders" });
+  }
+};
+
 const deleteOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -68,5 +78,6 @@ const deleteOrder = async (req, res) => {
 module.exports = {
   createOrder,
   getOrdersByUserId,
+  getAllOrders,
   deleteOrder,
 };
