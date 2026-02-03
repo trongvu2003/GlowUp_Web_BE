@@ -94,6 +94,9 @@ class UserModel {
       .input("id", sql.Int, id)
       .query(`DELETE FROM users WHERE id=@id`);
   }
+
+  
 }
+
 
 module.exports = UserModel;

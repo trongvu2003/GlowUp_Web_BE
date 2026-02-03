@@ -25,6 +25,7 @@ class UserService {
   static async delete(id) {
     await UserModel.delete(id);
   }
+  
 }
 
 module.exports = UserService;

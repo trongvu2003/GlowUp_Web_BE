@@ -6,13 +6,16 @@ const {
   postCreateUser,
   UpdateUser,
   DeleteUser,
+  getMe
 } = require("../controllers/user_controller");
 const auth = require("../middlewares/auth");
+router.get("/me", auth, getMe);
 
 router.get("/", auth, getAllUsers);
-router.get("/:id", getUserById);
 router.post("/create-user", postCreateUser);
 router.put("/update-user/:id", UpdateUser);
 router.delete("/delete-user/:id", DeleteUser);
+
+router.get("/:id", getUserById);
 
 module.exports = router;

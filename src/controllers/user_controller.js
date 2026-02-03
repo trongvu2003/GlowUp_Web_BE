@@ -54,10 +54,43 @@ const DeleteUser = async (req, res) => {
   res.json({ message: "Delete success" });
 };
 
+const getMe = async (req, res) => {
+  try {
+    // 1. Lấy thông tin từ middleware gửi sang
+    // Lúc login bạn sign token thế nào thì giờ decoded ra thế ấy.
+    const currentUser = req.user; 
+    
+    // Kiểm tra an toàn
+    if (!currentUser || !currentUser.id) {
+      return res.status(400).json({ message: "Token không chứa ID người dùng" });
+    }
+
+    // 2. Gọi Model để lấy dữ liệu mới nhất từ DB (vì Token có thể cũ)
+    const userData = await UserService.getById(currentUser.id);
+
+    if (!userData) {
+      return res.status(404).json({ message: "Người dùng không tồn tại" });
+    }
+
+    // 3. Loại bỏ mật khẩu trước khi trả về
+    const { password, ...infoWithoutPassword } = userData;
+
+    return res.status(200).json({
+      success: true,
+      data: infoWithoutPassword
+    });
+
+  } catch (error) {
+    console.error("GetMe Error:", error);
+    return res.status(500).json({ message: "Lỗi Server" });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
   postCreateUser,
   UpdateUser,
   DeleteUser,
+  getMe
 };
