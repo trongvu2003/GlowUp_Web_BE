@@ -35,6 +35,7 @@ app.use("/api/carts", require("./routes/cart_route"));
 app.use("/api/orders", require("./routes/order_route"));
 app.use("/api/vnpay", require("./routes/vnpay_route"));
 app.use("/api/chatbot", require("./routes/chatbot"))
+app.use("/api/address", require("./routes/address_route"))
 
 /* ================= START SERVER ================= */
 
