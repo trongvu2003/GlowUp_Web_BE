@@ -50,6 +50,14 @@ class CartService {
     return { message: "Item removed from cart successfully" };
   }
 
+  static async removeItemsFromCart(itemIds) {
+    if (!Array.isArray(itemIds) || itemIds.length === 0) {
+      throw new Error("Item IDs must be a non-empty array");
+    }
+    await CartItemModel.deleteMultipleByIds(itemIds);
+    return { message: "Items removed from cart successfully" };
+  }
+
   static async clearCart(cartId) {
     await CartItemModel.deleteAllByCartId(cartId);
     return { message: "Cart cleared successfully" };
