@@ -19,10 +19,6 @@ class VNPayService {
   this.vnp_HashSecret = process.env.VNP_HASH_SECRET;
   this.vnp_Url = process.env.VNP_URL;
   this.vnp_ReturnUrl = process.env.VNP_RETURN_URL;
-
-  console.log('🏢 VNP_TMN_CODE:', this.vnp_TmnCode);
-  console.log('🔑 VNP_HASH_SECRET length:', this.vnp_HashSecret?.length);
-  console.log('🔑 VNP_HASH_SECRET:', this.vnp_HashSecret);
 }
 
   sortObject(obj) {
