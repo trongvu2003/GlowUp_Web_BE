@@ -74,11 +74,11 @@ class UserModel {
       .input("email", sql.NVarChar, user.email ?? null)
       .input("password", sql.NVarChar, passwordHash).query(`
         UPDATE users
-        SET full_name = ISNULL(@full_name, full_name),
-            phone = ISNULL(@phone, phone),
-            role = ISNULL(@role, role),
-            email = ISNULL(@email, email),
-            password = ISNULL(@password, password)
+        SET full_name = COALESCE(@full_name, full_name),
+            phone = COALESCE(@phone, phone),
+            role = COALESCE(@role, role),
+            email = COALESCE(@email, email),
+            password = COALESCE(@password, password)
         WHERE id = @id
       `);
 
