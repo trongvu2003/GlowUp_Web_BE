@@ -14,10 +14,25 @@ class VNPayController {
       const { orderId, bankCode } = req.body;
 
       // Lấy IP của client
-      const ipAddr = req.headers['x-forwarded-for'] ||
-                     req.connection.remoteAddress ||
-                     req.socket.remoteAddress ||
-                     req.connection.socket.remoteAddress;
+      let ipAddr =
+      req.headers['x-forwarded-for']?.split(',')[0] ||
+      req.socket.remoteAddress ||
+      req.connection.remoteAddress ||
+      '';
+
+    // Normalize IPv6
+    if (ipAddr.startsWith('::ffff:')) {
+      ipAddr = ipAddr.replace('::ffff:', '');
+    }
+
+    // 🔥 FIX: Chuyển localhost IPv6 sang IPv4
+    if (ipAddr === '::1') {
+      ipAddr = '127.0.0.1';
+    }
+
+
+console.log('VNPay IP:', ipAddr);
+
 
       const pool = await poolPromise;
       
@@ -61,14 +76,14 @@ class VNPayController {
 
       // Tạo payment URL
       const paymentUrl = vnpayService.createPaymentUrl(
-        paymentId,
-        orderId,
-        order.total_price,
-        `Thanh toán đơn hàng #${orderId}`,
-        ipAddr,
-        'vn',
-        bankCode || ''
-      );
+  paymentId,
+  orderId,
+  order.total_price,
+  `PaymentOrder${orderId}`, // ✅ Đổi sang tiếng Anh, bỏ dấu
+  ipAddr,
+  'vn',
+  bankCode || ''
+);
 
       return res.json({
         success: true,
@@ -94,6 +109,9 @@ class VNPayController {
    * Xử lý callback từ VNPay (Return URL)
    */
   async vnpayReturn(req, res) {
+    console.log('\n🎯🎯🎯 VNPAY RETURN ENDPOINT CALLED 🎯🎯🎯');
+  console.log('📍 Full URL:', req.originalUrl);
+  console.log('📍 Query String:', JSON.stringify(req.query, null, 2));
     try {
       const vnpParams = req.query;
 
@@ -452,214 +470,3 @@ class VNPayController {
 }
 
 module.exports = new VNPayController();
-
-// // VNPay Controller
-// const { sql, poolPromise } = require('../config/db');
-// const vnpayService = require('../services/vnpay_service');
-
-// class VNPayController {
-//   async createPayment(req, res) {
-//     try {
-//       const { orderId, amount, orderInfo } = req.body;
-
-//       const ipAddr =
-//         req.headers['x-forwarded-for'] ||
-//         req.connection.remoteAddress ||
-//         req.socket.remoteAddress;
-
-//       const pool = await poolPromise;
-
-//       // 1. Check order
-//       const orderResult = await pool.request()
-//         .input('orderId', sql.Int, orderId)
-//         .query('SELECT * FROM orders WHERE id = @orderId');
-
-//       if (orderResult.recordset.length === 0) {
-//         return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
-//       }
-
-//       const order = orderResult.recordset[0];
-
-//       if (order.status !== 'pending') {
-//         return res.status(400).json({ message: 'Đơn hàng không thể thanh toán' });
-//       }
-
-//       const payAmount = amount || order.total_price;
-
-//       // 2. Tạo payment record
-//       await pool.request()
-//         .input('orderId', sql.Int, orderId)
-//         .input('method', sql.NVarChar, 'vnpay')
-//         .input('amount', sql.Decimal(12, 0), payAmount)
-//         .query(`
-//           INSERT INTO payments (order_id, payment_method, amount, status)
-//           VALUES (@orderId, @method, @amount, 'pending')
-//         `);
-
-//       // 3. Tạo URL VNPay
-//       const paymentUrl = vnpayService.createPaymentUrl(
-//         orderId,
-//         payAmount,
-//         orderInfo || `Thanh toán đơn hàng #${orderId}`,
-//         ipAddr
-//       );
-
-//       // 4. Update order (chỉ trạng thái)
-//       await pool.request()
-//         .input('orderId', sql.Int, orderId)
-//         .query(`
-//           UPDATE orders
-//           SET status = 'processing',
-//               payment_status = 'unpaid'
-//           WHERE id = @orderId
-//         `);
-
-//       return res.json({ paymentUrl });
-
-//     } catch (err) {
-//       console.error(err);
-//       res.status(500).json({ message: 'Create payment failed' });
-//     }
-//   }
-
-
-//   /**
-//    * Xử lý callback từ VNPay (Return URL)
-//    */
-//     async vnpayReturn(req, res) {
-//     try {
-//       const vnpParams = req.query;
-//       const verify = vnpayService.verifyReturnUrl(vnpParams);
-
-//       if (!verify.isValid) {
-//         return res.redirect(`${process.env.FRONTEND_URL}/payment/failed`);
-//       }
-
-//       const pool = await poolPromise;
-//       const orderId = verify.orderId;
-
-//       if (verify.responseCode === '00') {
-//         // Thành công
-//         await pool.request()
-//           .input('orderId', sql.Int, orderId)
-//           .input('tranNo', sql.NVarChar, verify.transactionNo)
-//           .input('bankCode', sql.NVarChar, verify.bankCode)
-//           .input('payDate', sql.NVarChar, verify.payDate)
-//           .query(`
-//             UPDATE payments
-//             SET status = 'completed',
-//                 transaction_no = @tranNo,
-//                 bank_code = @bankCode,
-//                 pay_date = @payDate,
-//                 response_code = '00',
-//                 completed_at = GETDATE()
-//             WHERE order_id = @orderId
-//           `);
-
-//         await pool.request()
-//           .input('orderId', sql.Int, orderId)
-//           .query(`
-//             UPDATE orders
-//             SET status = 'paid',
-//                 payment_status = 'paid'
-//             WHERE id = @orderId
-//           `);
-
-//         return res.redirect(`${process.env.FRONTEND_URL}/payment/success?orderId=${orderId}`);
-//       }
-
-//       // Thất bại
-//       await pool.request()
-//         .input('orderId', sql.Int, orderId)
-//         .input('code', sql.NVarChar, verify.responseCode)
-//         .query(`
-//           UPDATE payments
-//           SET status = 'failed',
-//               response_code = @code
-//           WHERE order_id = @orderId
-//         `);
-
-//       return res.redirect(`${process.env.FRONTEND_URL}/payment/failed`);
-
-//     } catch (err) {
-//       console.error(err);
-//       return res.redirect(`${process.env.FRONTEND_URL}/payment/failed`);
-//     }
-//   }
-
-//   /**
-//    * Xử lý IPN (Instant Payment Notification) từ VNPay
-//    */
-//     async vnpayIPN(req, res) {
-//     try {
-//       const verify = vnpayService.verifyIpn(req.query);
-
-//       if (verify.RspCode !== '00') {
-//         return res.json(verify);
-//       }
-
-//       const pool = await poolPromise;
-
-//       await pool.request()
-//         .input('orderId', sql.Int, verify.orderId)
-//         .input('tranNo', sql.NVarChar, verify.transactionNo)
-//         .query(`
-//           UPDATE payments
-//           SET status = 'completed',
-//               transaction_no = @tranNo,
-//               response_code = '00',
-//               completed_at = GETDATE()
-//           WHERE order_id = @orderId
-//         `);
-
-//       await pool.request()
-//         .input('orderId', sql.Int, verify.orderId)
-//         .query(`
-//           UPDATE orders
-//           SET status = 'paid',
-//               payment_status = 'paid'
-//           WHERE id = @orderId
-//         `);
-
-//       return res.json({ RspCode: '00', Message: 'Success' });
-
-//     } catch (err) {
-//       console.error(err);
-//       return res.json({ RspCode: '99', Message: 'System error' });
-//     }
-//   }
-
-//   /**
-//    * Kiểm tra trạng thái thanh toán
-//    */
-//     async checkPaymentStatus(req, res) {
-//     const { orderId } = req.params;
-//     const pool = await poolPromise;
-
-//     const result = await pool.request()
-//       .input('orderId', sql.Int, orderId)
-//       .query(`
-//         SELECT 
-//           o.id AS order_id,
-//           o.status AS order_status,
-//           o.payment_status,
-//           p.payment_method,
-//           p.amount,
-//           p.status AS payment_status_detail,
-//           p.transaction_no,
-//           p.bank_code,
-//           p.pay_date
-//         FROM orders o
-//         LEFT JOIN payments p ON o.id = p.order_id
-//         WHERE o.id = @orderId
-//       `);
-
-//     if (!result.recordset.length) {
-//       return res.status(404).json({ message: 'Order not found' });
-//     }
-
-//     res.json(result.recordset[0]);
-//   }
-// }
-
-// module.exports = new VNPayController();
