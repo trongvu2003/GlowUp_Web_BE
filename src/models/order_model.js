@@ -1,7 +1,7 @@
 const { sql, poolPromise } = require("../config/db");
 
 class OrderModel {
-  static async create(userId, totalPrice, status, paymentMethod, address, phone) {
+  static async create(userId, totalPrice, status, paymentMethod, address, phone, voucherId = null) {
     const pool = await poolPromise;
     const result = await pool
       .request()
@@ -11,10 +11,11 @@ class OrderModel {
       .input("paymentMethod", sql.NVarChar, paymentMethod)
       .input("address", sql.NVarChar, address)
       .input("phone", sql.NVarChar, phone)
+      .input("voucherId", sql.Int, voucherId)
       .query(`
-        INSERT INTO orders (user_id, total_price, status, payment_method, address, phone)
+        INSERT INTO orders (user_id, total_price, status, payment_method, address, phone, voucher_id)
         OUTPUT INSERTED.*
-        VALUES (@userId, @totalPrice, @status, @paymentMethod, @address, @phone)
+        VALUES (@userId, @totalPrice, @status, @paymentMethod, @address, @phone, @voucherId)
       `);
 
     return result.recordset[0];

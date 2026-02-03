@@ -2,7 +2,7 @@ const OrderService = require("../services/order_service");
 
 const createOrder = async (req, res) => {
   try {
-    const { userId, items, totalPrice, status, paymentMethod, address, phone } = req.body;
+    const { userId, items, totalPrice, status, paymentMethod, address, phone, voucherId } = req.body;
     
     if (!userId || !items || !totalPrice || !status || !paymentMethod || !address || !phone) {
       return res.status(400).json({ message: "All fields are required" });
@@ -19,7 +19,8 @@ const createOrder = async (req, res) => {
       status,
       paymentMethod,
       address,
-      phone
+      phone,
+      voucherId ? Number(voucherId) : null
     );
     
     res.status(201).json(result);
