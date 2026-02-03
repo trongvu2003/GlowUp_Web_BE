@@ -27,6 +27,7 @@ app.use("/api/auth", require("./routes/auth_route"));
 app.use("/api/categories", require("./routes/category_route"));
 app.use("/api/vouchers", require("./routes/voucher_route"));
 app.use("/api/carts", require("./routes/cart_route"));
+app.use("/api/orders", require("./routes/order_route"));
 
 app.listen(port, hostname, () => {
   console.log(`app listening on port ${port}`);
