@@ -58,6 +58,19 @@ class CartItemModel {
       .query("DELETE FROM cart_items WHERE id = @id");
   }
 
+  static async deleteMultipleByIds(ids) {
+    const pool = await poolPromise;
+    const request = await pool.request();
+    
+    // Create placeholders for the list of IDs
+    const placeholders = ids.map((id, index) => {
+      request.input(`id${index}`, sql.Int, id);
+      return `@id${index}`;
+    }).join(", ");
+
+    await request.query(`DELETE FROM cart_items WHERE id IN (${placeholders})`);
+  }
+
   static async deleteAllByCartId(cartId) {
     const pool = await poolPromise;
     await pool

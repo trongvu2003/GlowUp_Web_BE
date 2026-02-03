@@ -114,6 +114,25 @@ class OrderService {
       message: "Order deleted successfully",
     };
   }
+
+  static async cancelOrder(orderId) {
+    const order = await OrderModel.getById(orderId);
+    if (!order) {
+      throw new Error("Order not found");
+    }
+
+    // Check status: only cancel if not shipping or completed
+    const forbiddenStatuses = ["shipping", "completed", "cancelled"];
+    if (forbiddenStatuses.includes(order.status.toLowerCase())) {
+      throw new Error(`Cannot cancel order with status: ${order.status}`);
+    }
+
+    await OrderModel.updateStatus(orderId, "cancelled");
+
+    return {
+      message: "Order cancelled successfully",
+    };
+  }
 }
 
 module.exports = OrderService;

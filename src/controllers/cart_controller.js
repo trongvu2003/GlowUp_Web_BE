@@ -56,6 +56,20 @@ const removeItemFromCart = async (req, res) => {
   }
 };
 
+const removeItemsFromCart = async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "ids must be a non-empty array" });
+    }
+    const result = await CartService.removeItemsFromCart(ids);
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message || "Server error while removing items from cart" });
+  }
+};
+
 const clearCart = async (req, res) => {
   try {
     const { cartId } = req.params;
@@ -90,6 +104,7 @@ module.exports = {
   addItemToCart,
   createCart,
   removeItemFromCart,
+  removeItemsFromCart,
   clearCart,
   updateItemQuantity,
 };

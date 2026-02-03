@@ -56,6 +56,27 @@ const getAllOrders = async (req, res) => {
   }
 };
 
+const cancelOrder = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    if (!orderId) {
+      return res.status(400).json({ message: "Order ID is required" });
+    }
+
+    const result = await OrderService.cancelOrder(Number(orderId));
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    if (err.message === "Order not found") {
+      return res.status(404).json({ message: err.message });
+    }
+    if (err.message.startsWith("Cannot cancel order")) {
+      return res.status(400).json({ message: err.message });
+    }
+    res.status(500).json({ message: "Server error while cancelling order" });
+  }
+};
+
 const deleteOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -79,5 +100,6 @@ module.exports = {
   createOrder,
   getOrdersByUserId,
   getAllOrders,
+  cancelOrder,
   deleteOrder,
 };

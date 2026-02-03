@@ -59,6 +59,17 @@ class OrderModel {
 
     return { message: "Order deleted successfully" };
   }
+
+  static async updateStatus(orderId, status) {
+    const pool = await poolPromise;
+    await pool
+      .request()
+      .input("orderId", sql.Int, orderId)
+      .input("status", sql.NVarChar, status)
+      .query("UPDATE orders SET status = @status WHERE id = @orderId");
+
+    return { message: "Order status updated successfully" };
+  }
 }
 
 module.exports = OrderModel;
