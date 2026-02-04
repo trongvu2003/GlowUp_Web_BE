@@ -133,6 +133,19 @@ class OrderService {
       message: "Order cancelled successfully",
     };
   }
+
+  static async updateOrderStatus(orderId, status) {
+    const order = await OrderModel.getById(orderId);
+    if (!order) {
+      throw new Error("Order not found");
+    }
+
+    await OrderModel.updateStatus(orderId, status);
+
+    return {
+      message: "Order status updated successfully",
+    };
+  }
 }
 
 module.exports = OrderService;
