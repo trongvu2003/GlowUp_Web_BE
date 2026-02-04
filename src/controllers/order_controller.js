@@ -2,28 +2,19 @@ const OrderService = require("../services/order_service");
 
 const createOrder = async (req, res) => {
   try {
-    const { userId, items, totalPrice, status, paymentMethod, address, phone, voucherId } = req.body;
-    
-    if (!userId || !items || !totalPrice || !status || !paymentMethod || !address || !phone) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
+      const userId = req.user.id;
+      const orderData = {
+        user_id: userId,
+        ...req.body
+      };
 
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: "Items must be a non-empty array" });
-    }
+      const newOrder = await orderService.createOrder(orderData);
 
-    const result = await OrderService.createOrder(
-      Number(userId),
-      items,
-      Number(totalPrice),
-      status,
-      paymentMethod,
-      address,
-      phone,
-      voucherId ? Number(voucherId) : null
-    );
-    
-    res.status(201).json(result);
+      res.status(201).json({
+        success: true,
+        message: "Đặt hàng thành công",
+        data: newOrder
+      });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message || "Server error while creating order" });
@@ -55,7 +46,88 @@ const getAllOrders = async (req, res) => {
     res.status(500).json({ message: "Server error while fetching all orders" });
   }
 };
-
+const getById = async(req, res)=>{
+  try {
+    const {orderId} = req.params;
+    const result= await OrderService.getById(orderId);
+    res.json({
+      success:true,
+      data:result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success:false,
+      message:error.message
+    });
+  }
+};
+const updateStatus = async(req, res)=>{
+  try {
+    const {orderId} = req.params;
+    const {status} = req.body;
+    const result= await OrderService.updateOrderStatus(orderId,status)
+    res.json({
+      success:true,
+      message:"Cập nhật trạng thái thành công",
+      data:result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success:false,
+      message:error.message
+    });
+  }
+};
+const updateShippingStatus = async(req, res)=>{
+  try {
+    const {orderId} = req.params;
+    const {shipping_status} = req.body;
+    const result= await OrderService.updateShippingStatus(orderId,shipping_status)
+    res.json({
+      success:true,
+      message:"Cập nhật trạng thái vận chuyển thành công",
+      data:result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success:false,
+      message:error.message
+    });
+  }
+};
+const updateShippingInfo = async(req, res)=>{
+  try {
+    const {orderId} = req.params;
+    const shippingData = req.body;
+    const result= await OrderService.updateOrderStatus(orderId,shippingData)
+    res.json({
+      success:true,
+      message:"Cập nhật thông tin vận chuyển thành công",
+      data:result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success:false,
+      message:error.message
+    });
+  }
+};
+const confirmDelivery = async(req, res)=>{
+  try {
+    const {orderId} = req.params;
+    const result= await OrderService.updateOrderStatus(orderId)
+    res.json({
+      success:true,
+      message:"Cập nhật giao hàng thành công",
+      data:result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success:false,
+      message:error.message
+    });
+  }
+};
 const cancelOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -77,6 +149,22 @@ const cancelOrder = async (req, res) => {
   }
 };
 
+  const getStatistics = async(req, res)=>{
+    try {
+      const result= await OrderService.getStatistics();
+      res.json({
+        success:true,
+        message:"Cập nhật trạng thái thành công",
+        data:result
+      });
+    } catch (error) {
+      res.status(500).json({
+        success:false,
+        message:error.message
+      });
+    }
+};
+
 const deleteOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -93,7 +181,8 @@ const deleteOrder = async (req, res) => {
       return res.status(404).json({ message: err.message });
     }
     res.status(500).json({ message: "Server error while deleting order" });
-  }
+  };
+
 };
 
 module.exports = {
@@ -102,4 +191,10 @@ module.exports = {
   getAllOrders,
   cancelOrder,
   deleteOrder,
+  getById,
+  updateStatus,
+  updateShippingStatus,
+  updateShippingInfo,
+  confirmDelivery,
+  getStatistics
 };
