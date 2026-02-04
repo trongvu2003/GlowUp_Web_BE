@@ -1,391 +1,124 @@
-const { sql, poolPromise } = require("../config/db");
+const ReviewModel = require("../models/review_model");
 
-class ReviewModel {
-  static async getAll(page = 1, limit = 10) {
-    try {
-      const pool = await poolPromise;
-      if (!pool) {
-        throw new Error("Database connection pool is null");
-      }
-      const offset = (page - 1) * limit;
-      const colCheck = await pool.request().query("SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='reviews' AND COLUMN_NAME='media_urls'");
-      const hasMediaCol = colCheck.recordset[0].cnt > 0;
-
-      const selectMedia = hasMediaCol ? ", r.media_urls" : "";
-
-      const result = await pool
-      .request()
-      .input("limit", sql.Int, limit)
-      .input("offset", sql.Int, offset)
-      .query(`
-        SELECT 
-          r.id,
-          r.user_id,
-          r.product_id,
-          r.rating,
-          r.comment,
-          r.is_anonymous,
-          r.created_at,
-            u.full_name as username,
-          p.name as product_name${selectMedia},
-          0 as has_purchased
-        FROM reviews r
-        LEFT JOIN users u ON r.user_id = u.id
-        LEFT JOIN products p ON r.product_id = p.id
-        ORDER BY r.created_at DESC
-        OFFSET @offset ROWS
-        FETCH NEXT @limit ROWS ONLY
-      `);
-
-    const totalResult = await pool.request().query("SELECT COUNT(*) as total FROM reviews");
-    
-      return {
-      data: result.recordset.map((rec) => ({
-        ...rec,
-        media_urls: (() => {
-          try {
-            return rec.media_urls ? JSON.parse(rec.media_urls) : [];
-          } catch (e) {
-            return [];
-          }
-        })(),
-      })),
-      total: totalResult.recordset[0].total,
-    };
-    } catch (error) {
-      console.error("Error in getAll:", error);
-      throw error;
-    }
+const getAllReviews = async (req, res) => {
+  try {
+    const { page, limit } = req.query;
+    const result = await ReviewModel.getAll(Number(page) || 1, Number(limit) || 10);
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error while fetching reviews" });
   }
+};
 
-  static async getByProductId(productId, page = 1, limit = 5) {
-    try {
-      const pool = await poolPromise;
-      if (!pool) {
-        throw new Error("Database connection pool is null");
-      }
-      const offset = (page - 1) * limit;
-      const colCheck = await pool.request().query("SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='reviews' AND COLUMN_NAME='media_urls'");
-      const hasMediaCol = colCheck.recordset[0].cnt > 0;
-      const selectMedia = hasMediaCol ? ", r.media_urls" : "";
-
-      const result = await pool
-        .request()
-        .input("productId", sql.Int, productId)
-        .input("limit", sql.Int, limit)
-        .input("offset", sql.Int, offset)
-        .query(`
-          SELECT 
-            r.id,
-            r.user_id,
-            r.product_id,
-            r.rating,
-            r.comment,
-            r.is_anonymous,
-            r.created_at,
-            u.full_name as username${selectMedia},
-            0 as has_purchased
-          FROM reviews r
-          LEFT JOIN users u ON r.user_id = u.id
-          WHERE r.product_id = @productId
-          ORDER BY r.created_at DESC
-          OFFSET @offset ROWS
-          FETCH NEXT @limit ROWS ONLY
-        `);
-
-      const totalResult = await pool
-        .request()
-        .input("productId", sql.Int, productId)
-        .query("SELECT COUNT(*) as total FROM reviews WHERE product_id = @productId");
-
-      return {
-        data: result.recordset.map((rec) => ({
-          ...rec,
-          media_urls: (() => {
-            try {
-              return rec.media_urls ? JSON.parse(rec.media_urls) : [];
-            } catch (e) {
-              return [];
-            }
-          })(),
-        })),
-        total: totalResult.recordset[0].total,
-      };
-    } catch (error) {
-      console.error("Error in getByProductId:", error);
-      throw error;
+const getProductReviews = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { page, limit } = req.query;
+    if (!productId) {
+      return res.status(400).json({ message: "Product ID is required" });
     }
+    const result = await ReviewModel.getByProductId(Number(productId), Number(page) || 1, Number(limit) || 5);
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error while fetching product reviews" });
   }
+};
 
-  static async getById(id) {
-    try {
-      const pool = await poolPromise;
-      if (!pool) {
-        throw new Error("Database connection pool is null");
-      }
-      const colCheck = await pool.request().query("SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='reviews' AND COLUMN_NAME='media_urls'");
-      const hasMediaCol = colCheck.recordset[0].cnt > 0;
-      const selectMedia = hasMediaCol ? ", r.media_urls" : "";
-
-      const result = await pool
-        .request()
-        .input("id", sql.Int, id)
-        .query(`
-          SELECT 
-            r.id,
-            r.user_id,
-            r.product_id,
-            r.rating,
-            r.comment,
-            r.is_anonymous,
-            r.created_at,
-            u.full_name as username${selectMedia},
-            0 as has_purchased
-          FROM reviews r
-          LEFT JOIN users u ON r.user_id = u.id
-          WHERE r.id = @id
-        `);
-
-      if (!result.recordset[0]) return null;
-
-      const review = result.recordset[0];
-      return {
-        ...review,
-        media_urls: (() => {
-          try {
-            return review.media_urls ? JSON.parse(review.media_urls) : [];
-          } catch (e) {
-            return [];
-          }
-        })(),
-      };
-    } catch (error) {
-      console.error("Error in getById:", error);
-      throw error;
+const getReviewById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await ReviewModel.getById(Number(id));
+    if (!result) {
+      return res.status(404).json({ message: "Review not found" });
     }
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error while fetching review" });
   }
+};
 
-  static async create(userId, productId, data) {
-    try {
-      const pool = await poolPromise;
-      if (!pool) {
-        throw new Error("Database connection pool is null");
-      }
-      
-      // Check if user already reviewed this product
-      const existingReview = await pool
-        .request()
-        .input("userId", sql.Int, userId)
-        .input("productId", sql.Int, productId)
-        .query(
-          "SELECT id FROM reviews WHERE user_id = @userId AND product_id = @productId"
-        );
+const createReview = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const userId = req.user.id; // From authMiddleware
+    const { rating, comment, is_anonymous, media_urls } = req.body;
 
-      if (existingReview.recordset.length > 0) {
-        throw new Error("Bạn đã đánh giá sản phẩm này rồi");
-      }
-
-      // Check if user purchased this product
-      const purchaseCheck = await pool
-        .request()
-        .input("userId", sql.Int, userId)
-        .input("productId", sql.Int, productId)
-        .query(`
-          SELECT COUNT(*) as count FROM cart_items ci
-          JOIN carts c ON ci.cart_id = c.id
-          WHERE c.user_id = @userId AND ci.product_id = @productId
-        `);
-
-      const hasPurchased = purchaseCheck.recordset[0].count > 0;
-
-      await pool
-        .request()
-        .input("user_id", sql.Int, userId)
-        .input("product_id", sql.Int, productId)
-        .input("rating", sql.Int, data.rating)
-        .input("comment", sql.NVarChar(sql.MAX), data.comment)
-        .input("is_anonymous", sql.Bit, data.is_anonymous ? 1 : 0)
-        .input("media_urls", sql.NVarChar(sql.MAX), JSON.stringify(data.media_urls || []))
-        .query(`
-          INSERT INTO reviews (user_id, product_id, rating, comment, is_anonymous, media_urls)
-          VALUES (@user_id, @product_id, @rating, @comment, @is_anonymous, @media_urls)
-        `);
-
-      // Lấy review vừa tạo với user info
-      const newReview = await pool
-        .request()
-        .input("user_id", sql.Int, userId)
-        .input("product_id", sql.Int, productId)
-        .query(`
-          SELECT 
-            r.id,
-            r.user_id,
-            r.product_id,
-            r.rating,
-            r.comment,
-            r.is_anonymous,
-            r.created_at,
-            u.full_name as username,
-            r.media_urls,
-            0 as has_purchased
-          FROM reviews r
-          LEFT JOIN users u ON r.user_id = u.id
-          WHERE r.user_id = @user_id AND r.product_id = @product_id
-          ORDER BY r.created_at DESC
-        `);
-
-      const review = newReview.recordset[0];
-      return {
-        message: "Đánh giá đã được tạo",
-        data: {
-          ...review,
-          media_urls: (() => {
-            try {
-              return review.media_urls ? JSON.parse(review.media_urls) : [];
-            } catch (e) {
-              return [];
-            }
-          })(),
-        }
-      };
-    } catch (error) {
-      console.error("Error in create:", error);
-      throw error;
+    if (!rating || !comment) {
+      return res.status(400).json({ message: "Rating and comment are required" });
     }
-  }
 
-  static async update(id, data) {
-    try {
-      const pool = await poolPromise;
-      if (!pool) {
-        throw new Error("Database connection pool is null");
-      }
-      
-      const updates = [];
-      const request = pool.request().input("id", sql.Int, id);
-
-      if (data.rating !== undefined) {
-        updates.push("rating = @rating");
-        request.input("rating", sql.Int, data.rating);
-      }
-
-      if (data.comment !== undefined) {
-        updates.push("comment = @comment");
-        request.input("comment", sql.NVarChar(sql.MAX), data.comment);
-      }
-
-      if (data.media_urls !== undefined) {
-        updates.push("media_urls = @media_urls");
-        request.input("media_urls", sql.NVarChar(sql.MAX), JSON.stringify(data.media_urls || []));
-      }
-
-      if (data.is_anonymous !== undefined) {
-        updates.push("is_anonymous = @is_anonymous");
-        request.input("is_anonymous", sql.Bit, data.is_anonymous ? 1 : 0);
-      }
-
-      if (updates.length === 0) return { message: "Không có thay đổi" };
-
-      const query = `UPDATE reviews SET ${updates.join(", ")} WHERE id = @id`;
-      await request.query(query);
-
-      return { message: "Đánh giá đã được cập nhật" };
-    } catch (error) {
-      console.error("Error in update:", error);
-      throw error;
+    const result = await ReviewModel.create(Number(userId), Number(productId), {
+      rating: Number(rating),
+      comment,
+      is_anonymous,
+      media_urls,
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    console.error(err);
+    if (err.message === "Bạn đã đánh giá sản phẩm này rồi") {
+      return res.status(400).json({ message: err.message });
     }
+    res.status(500).json({ message: err.message || "Server error while creating review" });
   }
+};
 
-  static async delete(id) {
-    try {
-      const pool = await poolPromise;
-      if (!pool) {
-        throw new Error("Database connection pool is null");
-      }
-      await pool
-        .request()
-        .input("id", sql.Int, id)
-        .query("DELETE FROM reviews WHERE id = @id");
-
-      return { message: "Đánh giá đã được xóa" };
-    } catch (error) {
-      console.error("Error in delete:", error);
-      throw error;
-    }
+const updateReview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await ReviewModel.update(Number(id), req.body);
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error while updating review" });
   }
+};
 
-  static async getAverageRating(productId) {
-    try {
-      const pool = await poolPromise;
-      if (!pool) {
-        throw new Error("Database connection pool is null");
-      }
-      const result = await pool
-        .request()
-        .input("productId", sql.Int, productId)
-        .query(`
-          SELECT 
-            AVG(CAST(rating as FLOAT)) as averageRating,
-            COUNT(*) as totalReviews
-          FROM reviews
-          WHERE product_id = @productId
-        `);
-
-      return result.recordset[0];
-    } catch (error) {
-      console.error("Error in getAverageRating:", error);
-      throw error;
-    }
+const deleteReview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await ReviewModel.delete(Number(id));
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error while deleting review" });
   }
+};
 
-  static async getRatingDistribution(productId) {
-    try {
-      const pool = await poolPromise;
-      if (!pool) {
-        throw new Error("Database connection pool is null");
-      }
-      const result = await pool
-        .request()
-        .input("productId", sql.Int, productId)
-        .query(`
-          SELECT 
-            rating,
-            COUNT(*) as count
-          FROM reviews
-          WHERE product_id = @productId
-          GROUP BY rating
-          ORDER BY rating DESC
-        `);
-
-      return result.recordset;
-    } catch (error) {
-      console.error("Error in getRatingDistribution:", error);
-      throw error;
-    }
+const getProductRating = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const average = await ReviewModel.getAverageRating(Number(productId));
+    const distribution = await ReviewModel.getRatingDistribution(Number(productId));
+    res.json({ average, distribution });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error while fetching rating info" });
   }
+};
 
-  static async checkUserPurchase(userId, productId) {
-    try {
-      const pool = await poolPromise;
-      if (!pool) {
-        throw new Error("Database connection pool is null");
-      }
-      const result = await pool
-        .request()
-        .input("userId", sql.Int, userId)
-        .input("productId", sql.Int, productId)
-        .query(`
-          SELECT COUNT(*) as count FROM cart_items ci
-          JOIN carts c ON ci.cart_id = c.id
-          WHERE c.user_id = @userId AND ci.product_id = @productId
-        `);
-
-      return result.recordset[0].count > 0;
-    } catch (error) {
-      console.error("Error in checkUserPurchase:", error);
-      throw error;
-    }
+const checkUserPurchase = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const userId = req.user.id;
+    const hasPurchased = await ReviewModel.checkUserPurchase(Number(userId), Number(productId));
+    res.json({ has_purchased: hasPurchased });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error while checking purchase status" });
   }
-}
+};
 
-module.exports = ReviewModel;
+module.exports = {
+  getAllReviews,
+  getProductReviews,
+  getReviewById,
+  createReview,
+  updateReview,
+  deleteReview,
+  getProductRating,
+  checkUserPurchase,
+};
