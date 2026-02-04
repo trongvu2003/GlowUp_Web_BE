@@ -145,7 +145,7 @@ console.log('VNPay IP:', ipAddr);
 
       // Kiểm tra response code
       if (responseCode === '00') {
-        // Giao dịch thành công - sử dụng stored procedure
+        // Giao dịch thành công - Cập nhật trực tiếp
         await pool.request()
           .input('payment_id', sql.Int, paymentId)
           .input('transaction_no', sql.NVarChar, verifyResult.transactionNo)
@@ -154,21 +154,51 @@ console.log('VNPay IP:', ipAddr);
           .input('card_type', sql.NVarChar, verifyResult.cardType)
           .input('pay_date', sql.NVarChar, verifyResult.payDate)
           .input('payment_data', sql.NVarChar, JSON.stringify(verifyResult.rawData))
-          .execute('sp_complete_payment');
+          .query(`
+            BEGIN TRANSACTION;
+            
+            -- Cập nhật bảng payments
+            UPDATE payments 
+            SET status = 'completed',
+                transaction_no = @transaction_no,
+                bank_code = @bank_code,
+                bank_tran_no = @bank_tran_no,
+                card_type = @card_type,
+                pay_date = @pay_date,
+                response_code = '00',
+                completed_at = GETDATE()
+            WHERE id = @payment_id;
 
-        // Redirect về trang thành công
-        return res.redirect(`${process.env.FRONTEND_URL}/payment/success?orderId=${orderId}&paymentId=${paymentId}`);
+            -- Cập nhật trạng thái thanh toán trong bảng orders
+            UPDATE orders
+            SET payment_status = 'paid'
+            FROM orders o
+            JOIN payments p ON o.id = p.order_id
+            WHERE p.id = @payment_id;
+
+            COMMIT TRANSACTION;
+          `);
+
+        // Redirect về trang xem đơn hàng với flag thành công
+        return res.redirect(`${process.env.FRONTEND_URL}/order/view_order?payment_success=true&orderId=${orderId}`);
       } else {
-        // Giao dịch thất bại - sử dụng stored procedure
+        // Giao dịch thất bại - Cập nhật trực tiếp
         const message = vnpayService.getResponseDescription(responseCode);
         
         await pool.request()
           .input('payment_id', sql.Int, paymentId)
           .input('response_code', sql.NVarChar, responseCode)
           .input('response_message', sql.NVarChar, message)
-          .execute('sp_fail_payment');
+          .query(`
+            UPDATE payments 
+            SET status = 'failed',
+                response_code = @response_code,
+                response_message = @response_message,
+                updated_at = GETDATE()
+            WHERE id = @payment_id
+          `);
 
-        return res.redirect(`${process.env.FRONTEND_URL}/payment/failed?orderId=${orderId}&message=${encodeURIComponent(message)}`);
+        return res.redirect(`${process.env.FRONTEND_URL}/order/view_order?payment_failed=true&orderId=${orderId}&message=${encodeURIComponent(message)}`);
       }
 
     } catch (error) {
@@ -230,7 +260,7 @@ console.log('VNPay IP:', ipAddr);
         });
       }
 
-      // Cập nhật payment thành công
+      // Cập nhật payment thành công - Cập nhật trực tiếp
       await pool.request()
         .input('payment_id', sql.Int, paymentId)
         .input('transaction_no', sql.NVarChar, verifyResult.transactionNo)
@@ -239,7 +269,30 @@ console.log('VNPay IP:', ipAddr);
         .input('card_type', sql.NVarChar, verifyResult.cardType)
         .input('pay_date', sql.NVarChar, verifyResult.payDate)
         .input('payment_data', sql.NVarChar, JSON.stringify(verifyResult.rawData))
-        .execute('sp_complete_payment');
+        .query(`
+          BEGIN TRANSACTION;
+          
+          -- Cập nhật bảng payments
+          UPDATE payments 
+          SET status = 'completed',
+              transaction_no = @transaction_no,
+              bank_code = @bank_code,
+              bank_tran_no = @bank_tran_no,
+              card_type = @card_type,
+              pay_date = @pay_date,
+              response_code = '00',
+              completed_at = GETDATE()
+          WHERE id = @payment_id;
+
+          -- Cập nhật trạng thái thanh toán trong bảng orders
+          UPDATE orders
+          SET payment_status = 'paid'
+          FROM orders o
+          JOIN payments p ON o.id = p.order_id
+          WHERE p.id = @payment_id;
+
+          COMMIT TRANSACTION;
+        `);
 
       // Trả về success cho VNPay
       return res.json({
