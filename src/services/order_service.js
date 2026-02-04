@@ -3,9 +3,9 @@ const OrderItemModel = require("../models/order_item_model");
 const VoucherModel = require("../models/voucher_model");
 
 class OrderService {
-  async createOrder(orderData) {
+  static async createOrder(userId, items, totalPrice, status, paymentMethod, address, phone, voucherId = null) {
     // Validate input
-    if (!orderData.userId || !orderData.items || orderData.items.length === 0 || !orderData.totalPrice || !orderData.status || !orderData.paymentMethod || !orderData.address || !orderData.phone || !orderData.shipping_latitude || !orderData.shipping_longitude) {
+    if (!userId || !items || items.length === 0 || !totalPrice || !status || !paymentMethod || !address || !phone) {
       throw new Error("Missing required fields");
     }
 
@@ -35,7 +35,7 @@ class OrderService {
     };
   }
 
-  async getOrdersByUserId(userId) {
+  static async getOrdersByUserId(userId) {
     // Get all orders for the user
     const orders = await OrderModel.getByUserId(userId);
 
@@ -66,7 +66,7 @@ class OrderService {
     };
   }
 
-  async getAllOrders() {
+  static async getAllOrders() {
     // Get all orders
     const orders = await OrderModel.getAll();
 
@@ -97,15 +97,7 @@ class OrderService {
     };
   }
 
-  async getOrderById(orderId){
-    const order = await OrderModel.getById(orderId);
-    if (!order) {
-      throw new Error("Không tìm thấy đơn hàng");
-    }
-    return order;
-  }
-
-  async deleteOrder(orderId) {
+  static async deleteOrder(orderId) {
     // Check if order exists
     const order = await OrderModel.getById(orderId);
     if (!order) {
@@ -123,7 +115,7 @@ class OrderService {
     };
   }
 
-  async cancelOrder(orderId) {
+  static async cancelOrder(orderId) {
     const order = await OrderModel.getById(orderId);
     if (!order) {
       throw new Error("Order not found");
@@ -140,38 +132,6 @@ class OrderService {
     return {
       message: "Order cancelled successfully",
     };
-  }
-
-   async updateOrderStatus(orderId, status) {
-    const order = await OrderModel.getById(orderId);
-    if (!order) {
-      throw new Error("Không tìm thấy đơn hàng");
-    }
-    return await OrderModel.updateStatus(orderId, status);
-  }
-
-  async updateShippingStatus(orderId, shippingStatus) {
-    const order = await OrderModel.getById(orderId);
-    if (!order) {
-      throw new Error("Không tìm thấy đơn hàng");
-    }
-    return await OrderModel.updateShippingStatus(orderId, shippingStatus);
-  }
-
-  async updateShippingInfo(orderId, shippingData) {
-    const order = await OrderModel.getById(orderId);
-    if (!order) {
-      throw new Error("Không tìm thấy đơn hàng");
-    }
-    return await OrderModel.updateShippingInfo(orderId, shippingData);
-  }
-
-  async confirmDelivery(orderId) {
-    return await OrderModel.updateActualDeliveryDate(orderId, new Date());
-  }
-
-  async getStatistics(){
-    return await OrderModel.getStatistics();
   }
 }
 
