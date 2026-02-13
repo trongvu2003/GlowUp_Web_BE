@@ -118,7 +118,7 @@ class ShippingController {
         status: status,
         location: location || null,
         description: description || null,
-        updated_by: adminId || null
+        updated_by: req.user?.id || null
       };
 
       const tracking = await shippingService.createTracking(trackingData);
